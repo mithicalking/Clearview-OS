@@ -1,0 +1,10 @@
+{
+  "name": "clearview-business-os",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "stripe": "^18.2.1"
+  }
+}

@@ -3,14 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Lustre - Detail Shop OS</title>
+<title>Clearview Business OS</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Lustre">
-<meta name="theme-color" content="#14161a">
+<meta name="apple-mobile-web-app-title" content="Clearview Business OS">
+<meta name="theme-color" content="#f8f7fb">
 <style>
-  html, body { margin:0; padding:0; background:#14161a; }
+  html, body { margin:0; padding:0; background:var(--bg, #f8f7fb); }
 </style>
+<script>
+  try {
+    const settings = JSON.parse(localStorage.getItem('clearview-settings-v1') || '{}');
+    if (settings.theme === 'dark') document.documentElement.dataset.theme = 'dark';
+  } catch (e) {}
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -22,16 +28,31 @@
 * { box-sizing: border-box; }
 
 :root {
-  --bg: #14161a;
-  --bg-elev: #1b1e24;
-  --surface: #20242c;
-  --surface-2: #282d38;
-  --border: #333846;
-  --text: #edebe5;
-  --text-dim: #9aa0ac;
-  --text-faint: #676d79;
-  --accent: #e8a33d;
-  --accent-soft: #3a2f1c;
+  --bg: #f8f7fb;
+  --bg-elev: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f1eef7;
+  --border: #e2dceb;
+  --text: #262231;
+  --text-dim: #625c70;
+  --text-faint: #827c8f;
+  --accent: #7650b5;
+  --accent-soft: #eee7f8;
+  --accent-border: #7650b559;
+  --accent-shadow: #7650b540;
+  --accent-glow: #7650b50f;
+  --accent-contrast: #ffffff;
+  --calendar-scheduled: #4fb8e0;
+  --calendar-done: #4caf6d;
+  --calendar-canceled: #e2574c;
+  --calendar-scheduled-soft: #4fb8e026;
+  --calendar-done-soft: #4caf6d26;
+  --calendar-canceled-soft: #e2574c26;
+  --door-secured: #4caf6d;
+  --door-undetermined: #4fb8e0;
+  --door-no-job: #7650b5;
+  --door-no-answer: #827c8f;
+  --door-no-soliciting: #e2574c;
   --accent-2: #4fb8e0;
   --success: #4caf6d;
   --danger: #e2574c;
@@ -52,6 +73,18 @@
   --font-body: 'Inter', sans-serif;
 }
 
+:root[data-theme="dark"] {
+  --bg: #101014;
+  --bg-elev: #17171c;
+  --surface: #1d1c22;
+  --surface-2: #27242f;
+  --border: #38343f;
+  --text: #f2eff6;
+  --text-dim: #b5afc0;
+  --text-faint: #918a9c;
+  --accent-soft: #30263f;
+}
+
 .dtl-root {
   font-family: var(--font-body), 'Inter', sans-serif;
   background: var(--bg);
@@ -64,7 +97,7 @@
 }
 
 .dtl-root, .dtl-root * { box-sizing: border-box; }
-.dtl-root ::selection { background: var(--accent); color: #14161a; }
+.dtl-root ::selection { background: var(--accent); color: var(--accent-contrast); }
 
 /* ---------- SIDEBAR ---------- */
 .dtl-sidebar {
@@ -76,6 +109,7 @@
   position: sticky;
   top: 0;
   height: 100vh;
+  z-index: 30;
 }
 .dtl-brand {
   display: flex;
@@ -87,11 +121,17 @@
 }
 .dtl-brand-mark {
   width: 34px; height: 34px; border-radius: 8px;
-  background: linear-gradient(135deg, var(--accent), #b9772a);
+  background: linear-gradient(135deg, var(--accent), #57358f);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 2px 10px rgba(232,163,61,0.25);
+  box-shadow: 0 2px 10px var(--accent-shadow);
 }
+.dtl-brand-toggle {
+  width: 40px; height: 40px; padding: 3px; border: 0; border-radius: 10px;
+  background: transparent; cursor: pointer; flex-shrink: 0;
+}
+.dtl-brand-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dtl-brand-toggle .dtl-brand-mark { width: 34px; height: 34px; }
 .dtl-brand-mark svg { width: 19px; height: 19px; }
 .dtl-brand-text { line-height: 1.1; }
 .dtl-brand-text .name {
@@ -108,7 +148,11 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.dtl-nav { display: flex; flex-direction: column; gap: 3px; flex: 1; }
+.dtl-nav {
+  display: flex; position: static; flex-direction: column; gap: 3px; flex: 1; min-height: 0;
+  overflow-y: auto;
+}
+.dtl-nav.open { display: flex; }
 .dtl-nav-item {
   display: flex; align-items: center; gap: 11px;
   padding: 10px 12px;
@@ -142,13 +186,47 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
   padding-left: 10px;
+  margin-top: auto;
 }
+.dtl-settings-btn { margin-bottom: 12px; }
+.dtl-settings-account { margin-bottom: 8px; color: var(--text-dim); font-size: 11px; }
+.dtl-settings-summary { margin-bottom: 18px; color: var(--text-dim); font-size: 13px; }
+.dtl-settings-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.dtl-settings-actions .dtl-btn { flex: 1 1 auto; justify-content: center; }
+.dtl-settings-actions .dtl-btn-danger { flex-grow: 0; }
+.dtl-settings-actions .dtl-btn svg { width: 15px; height: 15px; }
+.dtl-modal.variant-settings { max-width: 760px; border-top-color: var(--accent); }
+.dtl-modal.variant-settings .dtl-modal-head { background: var(--bg-elev); }
+.dtl-settings-layout { display: grid; grid-template-columns: 190px minmax(0, 1fr); min-height: 280px; }
+.dtl-settings-tabs { display: flex; flex-direction: column; gap: 3px; padding-right: 12px; border-right: 1px solid var(--border); overflow-y: auto; max-height: 58vh; }
+.dtl-settings-tab { padding: 9px 10px; border: 0; border-radius: 6px; background: transparent; color: var(--text-dim); font: 500 12px var(--font-body); text-align: left; cursor: pointer; }
+.dtl-settings-tab:hover { background: var(--surface-2); color: var(--text); }
+.dtl-settings-tab.active { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.dtl-settings-panel { min-width: 0; padding-left: 20px; }
+.dtl-settings-panel h3 { margin: 0 0 18px; font: 600 16px var(--font-display); color: var(--text); text-transform: uppercase; }
+.dtl-setting-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 48px; border-bottom: 1px solid var(--border); color: var(--text); font-size: 13px; }
+.dtl-settings-color { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.dtl-settings-color input { width: 48px; height: 40px; padding: 3px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); cursor: pointer; }
+.dtl-settings-color-value { color: var(--text-faint); font: 12px var(--font-body); text-transform: uppercase; }
+.dtl-settings-color-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; }
+.dtl-settings-color-grid .dtl-settings-color { min-width: 0; margin: 0; font-size: 12px; }
+.dtl-settings-subheading { margin: 0 0 12px; color: var(--text-dim); font-size: 11px; font-weight: 700; text-transform: uppercase; }
+.dtl-settings-color-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.dtl-settings-reset { margin-top: 6px; }
+.dtl-switch { position: relative; display: inline-flex; width: 44px; height: 24px; flex: 0 0 auto; }
+.dtl-switch input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.dtl-switch-track { width: 44px; height: 24px; border-radius: 12px; background: var(--border); transition: background .15s; cursor: pointer; }
+.dtl-switch-track::after { content: ''; display: block; width: 18px; height: 18px; margin: 3px; border-radius: 50%; background: #ffffff; transition: transform .15s; }
+.dtl-switch input:checked + .dtl-switch-track { background: var(--accent); }
+.dtl-switch input:checked + .dtl-switch-track::after { transform: translateX(20px); }
+.dtl-switch input:focus-visible + .dtl-switch-track { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dtl-import-file { display: none; }
 
 /* ---------- MAIN ---------- */
 .dtl-main { min-width: 0; }
 .dtl-header {
   position: sticky; top: 0; z-index: 20;
-  background: rgba(20,22,26,0.92);
+  background: var(--bg-elev);
   backdrop-filter: blur(6px);
   border-bottom: 1px solid var(--border);
   padding: 22px 34px;
@@ -212,8 +290,8 @@
 .dtl-quicklink:hover { color: var(--text); border-color: var(--text-faint); background: var(--surface); }
 .dtl-btn:hover { border-color: var(--text-faint); }
 .dtl-btn:active { transform: scale(0.97); }
-.dtl-btn-primary { background: var(--accent); color: #1a1305; border-color: var(--accent); }
-.dtl-btn-primary:hover { background: #f0ad4e; border-color: #f0ad4e; }
+.dtl-btn-primary { background: var(--accent); color: var(--accent-contrast); border-color: var(--accent); }
+.dtl-btn-primary:hover { filter: brightness(1.08); }
 .dtl-btn-ghost { background: transparent; }
 .dtl-btn-danger { background: transparent; color: var(--danger); border-color: rgba(226,87,76,0.4); }
 .dtl-btn-danger:hover { background: rgba(226,87,76,0.1); }
@@ -265,9 +343,9 @@
 .dtl-agenda-info .client { font-weight: 600; font-size: 13.5px; }
 .dtl-agenda-info .service { font-size: 12px; color: var(--text-faint); }
 .dtl-pill { font-size: 10.5px; padding: 3px 9px; border-radius: 100px; text-transform: uppercase; letter-spacing: .04em; font-weight: 700; }
-.dtl-pill.scheduled { background: rgba(79,184,224,0.15); color: var(--accent-2); }
-.dtl-pill.done { background: rgba(76,175,109,0.15); color: var(--success); }
-.dtl-pill.canceled { background: rgba(226,87,76,0.15); color: var(--danger); }
+.dtl-pill.scheduled { background: var(--calendar-scheduled-soft); color: var(--calendar-scheduled); }
+.dtl-pill.done { background: var(--calendar-done-soft); color: var(--calendar-done); }
+.dtl-pill.canceled { background: var(--calendar-canceled-soft); color: var(--calendar-canceled); }
 
 .dtl-empty { color: var(--text-faint); font-size: 12.5px; padding: 20px 4px; text-align: center; }
 
@@ -288,7 +366,7 @@
   padding: 7px 14px; border-radius: 100px; font-size: 12.5px; font-weight: 600; cursor: pointer;
   background: var(--surface); border: 1px solid var(--border); color: var(--text-dim);
 }
-.dtl-tab.active { background: var(--accent-soft); color: var(--accent); border-color: rgba(232,163,61,0.35); }
+.dtl-tab.active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-border); }
 
 /* ---------- CLIENT / INVENTORY CARDS ---------- */
 .dtl-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 14px; }
@@ -354,7 +432,10 @@
 .dtl-cal-cell.today { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .dtl-cal-daynum { font-family: var(--font-display); font-size: 12.5px; color: var(--text-dim); }
 .dtl-cal-cell.today .dtl-cal-daynum { color: var(--accent); }
-.dtl-cal-chip { font-size: 10px; background: var(--surface-2); border-left: 2px solid var(--accent-2); border-radius: 3px; padding: 2px 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-dim); }
+.dtl-cal-chip { font-size: 10px; background: var(--surface-2); border-left: 2px solid var(--calendar-scheduled); border-radius: 3px; padding: 2px 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-dim); }
+.dtl-cal-chip.scheduled { border-left-color: var(--calendar-scheduled); background: var(--calendar-scheduled-soft); }
+.dtl-cal-chip.done { border-left-color: var(--calendar-done); background: var(--calendar-done-soft); }
+.dtl-cal-chip.canceled { border-left-color: var(--calendar-canceled); background: var(--calendar-canceled-soft); }
 .dtl-cal-more { font-size: 10px; color: var(--text-faint); padding-left: 3px; }
 
 /* ---------- PROCESS GUIDE ---------- */
@@ -404,7 +485,7 @@
 .dtl-invoice-total { font-family: var(--font-display); font-size: 15px; }
 .dtl-pill.paid { background: rgba(76,175,109,0.15); color: var(--success); }
 .dtl-pill.unpaid { background: rgba(226,87,76,0.15); color: var(--danger); }
-.dtl-pill.uncompleted { background: rgba(232,163,61,0.15); color: var(--accent); }
+.dtl-pill.uncompleted { background: var(--accent-soft); color: var(--accent); }
 
 .dtl-price-row {
   display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 8px; background: var(--surface);
@@ -454,7 +535,7 @@
 .dtl-ct-iconbtn svg { width: 15px; height: 15px; }
 .dtl-ct-iconbtn.call:hover { color: var(--success); border-color: rgba(76,175,109,0.4); }
 .dtl-ct-iconbtn.text:hover { color: var(--cyan); border-color: rgba(95,212,224,0.4); }
-.dtl-ct-iconbtn.done-toggle:hover { color: var(--accent); border-color: rgba(232,163,61,0.4); }
+.dtl-ct-iconbtn.done-toggle:hover { color: var(--accent); border-color: var(--accent-border); }
 .dtl-ct-outcome { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .dtl-ct-outcome-label { font-size: 11.5px; color: var(--text-faint); font-weight: 600; }
 .dtl-ct-outcome-notes { font-size: 11.5px; color: var(--text-dim); font-style: italic; }
@@ -549,7 +630,7 @@
 .dtl-modal.variant-client .dtl-field input:focus, .dtl-modal.variant-client .dtl-field select:focus, .dtl-modal.variant-client .dtl-field textarea:focus { border-color: var(--accent-2); }
 
 .dtl-modal.variant-inventory { border-top-color: var(--accent); }
-.dtl-modal.variant-inventory .dtl-modal-head { background: linear-gradient(135deg, rgba(232,163,61,0.10), transparent 60%); }
+.dtl-modal.variant-inventory .dtl-modal-head { background: linear-gradient(135deg, var(--accent-soft), transparent 60%); }
 .dtl-modal.variant-inventory .dtl-modal-icon { background: var(--accent-soft); color: var(--accent); }
 .dtl-modal.variant-inventory .dtl-field input:focus, .dtl-modal.variant-inventory .dtl-field select:focus, .dtl-modal.variant-inventory .dtl-field textarea:focus { border-color: var(--accent); }
 
@@ -605,8 +686,8 @@
 /* header "top right" action button — colored per page */
 .dtl-btn-accent-client { background: var(--accent-2); border-color: var(--accent-2); color: #0c2430; }
 .dtl-btn-accent-client:hover { background: #6ac6e8; border-color: #6ac6e8; }
-.dtl-btn-accent-inventory { background: var(--accent); border-color: var(--accent); color: #1a1305; }
-.dtl-btn-accent-inventory:hover { background: #f0ad4e; border-color: #f0ad4e; }
+.dtl-btn-accent-inventory { background: var(--accent); border-color: var(--accent); color: var(--accent-contrast); }
+.dtl-btn-accent-inventory:hover { filter: brightness(1.08); }
 .dtl-btn-accent-calendar { background: var(--success); border-color: var(--success); color: #0d1f13; }
 .dtl-btn-accent-calendar:hover { background: #66c98a; border-color: #66c98a; }
 .dtl-btn-accent-process { background: var(--teal); border-color: var(--teal); color: #07211f; }
@@ -622,10 +703,54 @@
 .dtl-btn-accent-doorknock { background: var(--indigo); border-color: var(--indigo); color: #12142b; }
 .dtl-btn-accent-doorknock:hover { background: #adb8ff; border-color: #adb8ff; }
 
+.dtl-modal.variant-client, .dtl-modal.variant-calendar, .dtl-modal.variant-invoice,
+.dtl-modal.variant-pricing, .dtl-modal.variant-process, .dtl-modal.variant-buylist,
+.dtl-modal.variant-calltext, .dtl-modal.variant-doorknock { border-top-color: var(--accent); }
+.dtl-modal.variant-client .dtl-modal-head, .dtl-modal.variant-calendar .dtl-modal-head,
+.dtl-modal.variant-invoice .dtl-modal-head, .dtl-modal.variant-pricing .dtl-modal-head,
+.dtl-modal.variant-process .dtl-modal-head, .dtl-modal.variant-buylist .dtl-modal-head,
+.dtl-modal.variant-calltext .dtl-modal-head, .dtl-modal.variant-doorknock .dtl-modal-head {
+  background: linear-gradient(135deg, var(--accent-soft), transparent 60%);
+}
+.dtl-modal.variant-client .dtl-modal-icon, .dtl-modal.variant-calendar .dtl-modal-icon,
+.dtl-modal.variant-invoice .dtl-modal-icon, .dtl-modal.variant-pricing .dtl-modal-icon,
+.dtl-modal.variant-process .dtl-modal-icon, .dtl-modal.variant-buylist .dtl-modal-icon,
+.dtl-modal.variant-calltext .dtl-modal-icon, .dtl-modal.variant-doorknock .dtl-modal-icon {
+  background: var(--accent-soft); color: var(--accent);
+}
+.dtl-modal.variant-client .dtl-btn-primary, .dtl-modal.variant-calendar .dtl-btn-primary,
+.dtl-modal.variant-invoice .dtl-btn-primary, .dtl-modal.variant-pricing .dtl-btn-primary,
+.dtl-modal.variant-process .dtl-btn-primary, .dtl-modal.variant-buylist .dtl-btn-primary,
+.dtl-modal.variant-calltext .dtl-btn-primary, .dtl-modal.variant-doorknock .dtl-btn-primary {
+  background: var(--accent); border-color: var(--accent); color: var(--accent-contrast);
+}
+.dtl-modal.variant-client .dtl-btn-primary:hover, .dtl-modal.variant-calendar .dtl-btn-primary:hover,
+.dtl-modal.variant-invoice .dtl-btn-primary:hover, .dtl-modal.variant-pricing .dtl-btn-primary:hover,
+.dtl-modal.variant-process .dtl-btn-primary:hover, .dtl-modal.variant-buylist .dtl-btn-primary:hover,
+.dtl-modal.variant-calltext .dtl-btn-primary:hover, .dtl-modal.variant-doorknock .dtl-btn-primary:hover {
+  filter: brightness(1.08);
+}
+.dtl-modal.variant-client .dtl-field input:focus, .dtl-modal.variant-client .dtl-field select:focus, .dtl-modal.variant-client .dtl-field textarea:focus,
+.dtl-modal.variant-calendar .dtl-field input:focus, .dtl-modal.variant-calendar .dtl-field select:focus, .dtl-modal.variant-calendar .dtl-field textarea:focus,
+.dtl-modal.variant-invoice .dtl-field input:focus, .dtl-modal.variant-invoice .dtl-field select:focus, .dtl-modal.variant-invoice .dtl-field textarea:focus,
+.dtl-modal.variant-pricing .dtl-field input:focus, .dtl-modal.variant-pricing .dtl-field select:focus, .dtl-modal.variant-pricing .dtl-field textarea:focus,
+.dtl-modal.variant-process .dtl-field input:focus, .dtl-modal.variant-process .dtl-field select:focus, .dtl-modal.variant-process .dtl-field textarea:focus,
+.dtl-modal.variant-buylist .dtl-field input:focus, .dtl-modal.variant-buylist .dtl-field select:focus, .dtl-modal.variant-buylist .dtl-field textarea:focus,
+.dtl-modal.variant-calltext .dtl-field input:focus, .dtl-modal.variant-calltext .dtl-field select:focus, .dtl-modal.variant-calltext .dtl-field textarea:focus,
+.dtl-modal.variant-doorknock .dtl-field input:focus, .dtl-modal.variant-doorknock .dtl-field select:focus, .dtl-modal.variant-doorknock .dtl-field textarea:focus { border-color: var(--accent); }
+.dtl-btn-accent-client, .dtl-btn-accent-calendar, .dtl-btn-accent-process, .dtl-btn-accent-invoice,
+.dtl-btn-accent-pricing, .dtl-btn-accent-buylist, .dtl-btn-accent-calltext, .dtl-btn-accent-doorknock {
+  background: var(--accent); border-color: var(--accent); color: var(--accent-contrast);
+}
+.dtl-btn-accent-client:hover, .dtl-btn-accent-calendar:hover, .dtl-btn-accent-process:hover, .dtl-btn-accent-invoice:hover,
+.dtl-btn-accent-pricing:hover, .dtl-btn-accent-buylist:hover, .dtl-btn-accent-calltext:hover, .dtl-btn-accent-doorknock:hover {
+  filter: brightness(1.08);
+}
+
 /* ---------- DOOR KNOCKING MAP ---------- */
 .dtl-map-legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 10px 2px 14px 2px; }
 .dtl-map-legend-item { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-dim); }
-.dtl-map-legend-dot { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid #14161a; flex-shrink: 0; }
+.dtl-map-legend-dot { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid #ffffff; flex-shrink: 0; }
 #dtl-map { width: 100%; height: 62vh; min-height: 380px; border-radius: 10px; }
 #dtl-map .leaflet-popup-content-wrapper { background: var(--bg-elev); color: var(--text); border-radius: 8px; }
 #dtl-map .leaflet-popup-tip { background: var(--bg-elev); }
@@ -658,46 +783,80 @@
 
 @media (max-width: 760px) {
   .dtl-root { grid-template-columns: 1fr; }
-  .dtl-sidebar { position: static; height: auto; flex-direction: row; overflow-x: auto; }
-  .dtl-brand { display: none; }
-  .dtl-nav { flex-direction: row; }
-  .dtl-sidebar-foot { display: none; }
+  .dtl-sidebar { position: sticky; height: auto; min-height: 64px; flex-direction: row; align-items: center; gap: 10px; padding: 10px 14px; overflow: visible; }
+  .dtl-brand { padding: 0; border: 0; margin: 0; }
+  .dtl-brand-text { display: none; }
+  .dtl-nav {
+    display: none; position: absolute; top: 62px; left: 12px; right: auto; z-index: 40;
+    width: min(280px, calc(100vw - 24px)); max-height: calc(100vh - 74px); flex: none; min-height: 0;
+    overflow-y: auto; padding: 8px; background: var(--bg-elev); border: 1px solid var(--border);
+    border-radius: 8px; box-shadow: 0 12px 28px rgba(38,34,49,0.16);
+  }
+  .dtl-sidebar-foot { display: flex; flex-direction: column; align-items: flex-end; border: 0; padding: 0; margin-left: auto; font-size: 10px; }
+  .dtl-settings-btn { margin: 0 0 4px; width: auto; padding: 6px 9px; font-size: 12px; }
+  .dtl-settings-account { margin: 0; max-width: 48vw; overflow-wrap: anywhere; text-align: right; }
   .dtl-header { padding: 16px 18px; flex-wrap: wrap; }
   .dtl-view { padding: 18px; }
   .dtl-field-row, .dtl-need-cols { grid-template-columns: 1fr; }
 }
 
+@media (max-width: 600px) {
+  .dtl-modal.variant-settings { max-height: 90vh; }
+  .dtl-modal.variant-settings .dtl-modal-body { padding: 16px; }
+  .dtl-settings-layout { grid-template-columns: 1fr; min-height: 0; }
+  .dtl-settings-tabs { flex-direction: row; gap: 4px; margin: 0 0 16px; padding: 0 0 8px; border-right: 0; border-bottom: 1px solid var(--border); max-height: none; overflow-x: auto; overflow-y: hidden; }
+  .dtl-settings-tab { flex: 0 0 auto; white-space: nowrap; }
+  .dtl-settings-panel { padding-left: 0; }
+  .dtl-settings-color-grid { grid-template-columns: 1fr; }
+}
+
 /* ---------- AUTH GATE ---------- */
 .dtl-auth-gate {
   min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;
-  background: radial-gradient(circle at 30% 20%, rgba(232,163,61,0.06), transparent 45%), var(--bg, #14161a);
+  background: radial-gradient(circle at 30% 20%, var(--accent-glow), transparent 45%), var(--bg, #f8f7fb);
 }
 .dtl-auth-card {
-  width: 100%; max-width: 380px; background: var(--bg-elev, #1b1e24); border: 1px solid var(--border, #333846);
+  width: 100%; max-width: 380px; background: var(--bg-elev, #ffffff); border: 1px solid var(--border, #e2dceb);
   border-radius: 14px; padding: 30px 28px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
 }
 .dtl-auth-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
-.dtl-auth-brand .name { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 19px; letter-spacing: .06em; text-transform: uppercase; color: var(--text, #edebe5); }
-.dtl-auth-brand .tag { font-size: 10.5px; color: var(--text-faint, #676d79); letter-spacing: .08em; text-transform: uppercase; }
-.dtl-auth-title { font-family: 'Oswald', sans-serif; font-size: 17px; text-transform: uppercase; letter-spacing: .03em; color: var(--text, #edebe5); margin-bottom: 4px; }
-.dtl-auth-sub { font-size: 12.5px; color: var(--text-faint, #676d79); margin-bottom: 20px; }
+.dtl-auth-brand .name { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 19px; letter-spacing: .06em; text-transform: uppercase; color: var(--text, #262231); }
+.dtl-auth-brand .tag { font-size: 10.5px; color: var(--text-faint, #827c8f); letter-spacing: .08em; text-transform: uppercase; }
+.dtl-auth-title { font-family: 'Oswald', sans-serif; font-size: 17px; text-transform: uppercase; letter-spacing: .03em; color: var(--text, #262231); margin-bottom: 4px; }
+.dtl-auth-sub { font-size: 12.5px; color: var(--text-faint, #827c8f); margin-bottom: 20px; }
 .dtl-auth-tabs { display: flex; gap: 6px; margin-bottom: 18px; }
 .dtl-auth-tab {
   flex: 1; text-align: center; padding: 8px; border-radius: 7px; font-size: 12.5px; font-weight: 600; cursor: pointer;
-  background: var(--surface, #20242c); border: 1px solid var(--border, #333846); color: var(--text-dim, #9aa0ac);
+  background: var(--surface, #ffffff); border: 1px solid var(--border, #e2dceb); color: var(--text-dim, #625c70);
 }
-.dtl-auth-tab.active { background: var(--accent-soft, #3a2f1c); color: var(--accent, #e8a33d); border-color: rgba(232,163,61,0.35); }
+.dtl-auth-tab.active { background: var(--accent-soft, #eee7f8); color: var(--accent, #7650b5); border-color: var(--accent-border); }
 .dtl-auth-error { font-size: 12px; color: var(--danger, #e2574c); margin-top: 10px; min-height: 16px; }
-.dtl-auth-note { font-size: 11px; color: var(--text-faint, #676d79); margin-top: 16px; line-height: 1.5; }
+.dtl-auth-note { font-size: 11px; color: var(--text-faint, #827c8f); margin-top: 16px; line-height: 1.5; }
+.dtl-paywall {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
+  background: radial-gradient(circle at 30% 20%, var(--accent-glow), transparent 45%), var(--bg);
+}
+.dtl-paywall-card {
+  width: 100%; max-width: 440px; padding: 32px; border: 1px solid var(--border); border-radius: 12px;
+  background: var(--bg-elev); box-shadow: 0 18px 48px rgba(0,0,0,0.14);
+}
+.dtl-paywall-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+.dtl-paywall-title { margin: 0; color: var(--text); font: 600 22px var(--font-display); text-transform: uppercase; }
+.dtl-paywall-copy { margin: 8px 0 20px; color: var(--text-dim); font-size: 13px; line-height: 1.55; }
+.dtl-paywall-price { min-height: 24px; margin-bottom: 14px; color: var(--text); font-size: 16px; font-weight: 700; }
+.dtl-paywall-status { min-height: 20px; margin: 10px 0 14px; color: var(--danger); font-size: 12px; line-height: 1.45; }
+.dtl-paywall-actions { display: grid; gap: 9px; }
+.dtl-paywall-actions .dtl-btn { width: 100%; justify-content: center; }
+.dtl-paywall-footnote { margin: 18px 0 0; color: var(--text-faint); font-size: 11px; line-height: 1.5; text-align: center; }
 </style>
 
 <div class="dtl-auth-gate" id="dtl-auth-gate">
   <div class="dtl-auth-card">
     <div class="dtl-auth-brand">
       <div class="dtl-brand-mark">
-        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 13l1.5-5A2 2 0 0 1 6.4 6.5h11.2a2 2 0 0 1 1.9 1.5L21 13" stroke="#14161a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><rect x="2.2" y="13" width="19.6" height="5.5" rx="1.4" stroke="#14161a" stroke-width="1.8"/><circle cx="6.5" cy="18.5" r="1.6" fill="#14161a"/><circle cx="17.5" cy="18.5" r="1.6" fill="#14161a"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 13l1.5-5A2 2 0 0 1 6.4 6.5h11.2a2 2 0 0 1 1.9 1.5L21 13" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><rect x="2.2" y="13" width="19.6" height="5.5" rx="1.4" stroke="#ffffff" stroke-width="1.8"/><circle cx="6.5" cy="18.5" r="1.6" fill="#ffffff"/><circle cx="17.5" cy="18.5" r="1.6" fill="#ffffff"/></svg>
       </div>
-      <div><div class="name">Lustre</div><div class="tag">Detail Shop OS</div></div>
+      <div><div class="name">Clearview</div><div class="tag">Business OS</div></div>
     </div>
     <div class="dtl-auth-tabs">
       <div class="dtl-auth-tab active" id="dtl-tab-signin" data-authtab="signin">Sign In</div>
@@ -713,26 +872,46 @@
   </div>
 </div>
 
+<div class="dtl-paywall" id="dtl-paywall" style="display:none;">
+  <section class="dtl-paywall-card" aria-labelledby="dtl-paywall-title">
+    <div class="dtl-paywall-brand">
+      <div class="dtl-brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 13l1.5-5A2 2 0 0 1 6.4 6.5h11.2a2 2 0 0 1 1.9 1.5L21 13" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><rect x="2.2" y="13" width="19.6" height="5.5" rx="1.4" stroke="#ffffff" stroke-width="1.8"/><circle cx="6.5" cy="18.5" r="1.6" fill="#ffffff"/><circle cx="17.5" cy="18.5" r="1.6" fill="#ffffff"/></svg>
+      </div>
+      <div class="dtl-brand-text"><div class="name">Clearview</div><div class="tag">Business OS</div></div>
+    </div>
+    <h1 class="dtl-paywall-title" id="dtl-paywall-title">Choose your subscription</h1>
+    <p class="dtl-paywall-copy">An active subscription is required to access your business workspace and synced data.</p>
+    <div class="dtl-paywall-price" id="dtl-paywall-price" aria-live="polite">Loading plan details...</div>
+    <div class="dtl-paywall-status" id="dtl-paywall-status" role="status" aria-live="polite"></div>
+    <div class="dtl-paywall-actions">
+      <button class="dtl-btn dtl-btn-primary" id="dtl-paywall-subscribe" type="button" disabled>Subscribe securely</button>
+      <button class="dtl-btn dtl-btn-ghost" id="dtl-paywall-manage" type="button">Manage existing billing</button>
+      <button class="dtl-btn dtl-btn-ghost" id="dtl-paywall-retry" type="button">Check subscription</button>
+      <button class="dtl-btn dtl-btn-ghost" id="dtl-paywall-logout" type="button">Sign out</button>
+    </div>
+    <p class="dtl-paywall-footnote">Payments are handled securely by Stripe. You can manage or cancel your subscription from account settings.</p>
+  </section>
+</div>
+
 <div class="dtl-root" id="dtl-root" style="display:none;">
   <aside class="dtl-sidebar">
     <div class="dtl-brand">
-      <div class="dtl-brand-mark">
-        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 13l1.5-5A2 2 0 0 1 6.4 6.5h11.2a2 2 0 0 1 1.9 1.5L21 13" stroke="#14161a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><rect x="2.2" y="13" width="19.6" height="5.5" rx="1.4" stroke="#14161a" stroke-width="1.8"/><circle cx="6.5" cy="18.5" r="1.6" fill="#14161a"/><circle cx="17.5" cy="18.5" r="1.6" fill="#14161a"/></svg>
-      </div>
+      <button class="dtl-brand-toggle" id="dtl-menu-toggle" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="dtl-nav">
+        <span class="dtl-brand-mark">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 13l1.5-5A2 2 0 0 1 6.4 6.5h11.2a2 2 0 0 1 1.9 1.5L21 13" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><rect x="2.2" y="13" width="19.6" height="5.5" rx="1.4" stroke="#ffffff" stroke-width="1.8"/><circle cx="6.5" cy="18.5" r="1.6" fill="#ffffff"/><circle cx="17.5" cy="18.5" r="1.6" fill="#ffffff"/></svg>
+        </span>
+      </button>
       <div class="dtl-brand-text">
-        <div class="name">Lustre</div>
-        <div class="tag">Detail Shop OS</div>
+        <div class="name">Clearview</div>
+        <div class="tag">Business OS</div>
       </div>
     </div>
     <nav class="dtl-nav" id="dtl-nav"></nav>
     <div class="dtl-sidebar-foot">
-      <div style="margin-bottom:8px; color:var(--text-dim); font-size:11px;" id="dtl-account-email">Synced &middot; v1.0</div>
-      <div style="display:flex; gap:6px; flex-wrap:wrap;">
-        <button class="dtl-icon-btn" id="dtl-export-btn" title="Export backup (.json)" style="width:auto; padding:0 8px; font-size:11px;">Export</button>
-        <button class="dtl-icon-btn" id="dtl-import-btn" title="Import backup (.json)" style="width:auto; padding:0 8px; font-size:11px;">Import</button>
-        <button class="dtl-icon-btn" id="dtl-logout-btn" title="Log out" style="width:auto; padding:0 8px; font-size:11px;">Log Out</button>
-      </div>
-      <input type="file" id="dtl-import-file" accept="application/json" style="display:none;">
+      <button class="dtl-nav-item dtl-settings-btn" id="dtl-settings-btn" type="button" aria-label="Open settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.7 2.9-.2-.1a1.7 1.7 0 0 0-1.8.1 1.7 1.7 0 0 0-.9 1.5v.2h-3.4v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8-.1l-.2.1-1.7-2.9.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H5.8v-3.4H6a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1 1.7-2.9.2.1a1.7 1.7 0 0 0 1.8-.1 1.7 1.7 0 0 0 .9-1.5V3h3.4v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8.1l.2-.1 1.7 2.9-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2V14h-.2a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Settings</span></button>
+      <div class="dtl-settings-account" id="dtl-account-email">Synced &middot; v1.0</div>
+      <input class="dtl-import-file" type="file" id="dtl-import-file" accept="application/json">
     </div>
   </aside>
 
@@ -776,6 +955,7 @@ const ICONS = {
   laundry: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="13" r="5"/><circle cx="12" cy="13" r="2"/><circle cx="6.5" cy="6" r="0.7" fill="currentColor" stroke="none"/><circle cx="9" cy="6" r="0.7" fill="currentColor" stroke="none"/></svg>',
   reports: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V10"/><path d="M12 20V4"/><path d="M20 20v-7"/><path d="M3 20h18"/></svg>',
   buylist: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/><path d="M2 3h2l2.4 12.2a2 2 0 0 0 2 1.6h8.6a2 2 0 0 0 2-1.6L21 7H6"/></svg>',
+  settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.7 2.9-.2-.1a1.7 1.7 0 0 0-1.8.1 1.7 1.7 0 0 0-.9 1.5v.2h-3.4v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8-.1l-.2.1-1.7-2.9.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H5.8v-3.4H6a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1 1.7-2.9.2.1a1.7 1.7 0 0 0 1.8-.1 1.7 1.7 0 0 0 .9-1.5V3h3.4v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8.1l.2-.1 1.7 2.9-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2V14h-.2a1.7 1.7 0 0 0-1.5 1z"/></svg>',
   calltext: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5c0 8.8 6.2 15 15 15l2-3.6-5-2-1.5 1.9A11.6 11.6 0 0 1 8.7 9.5L10.6 8 8.6 3 4 5z"/></svg>',
   doorknock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s7-6.1 7-11.5A7 7 0 0 0 5 9.5C5 14.9 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.4"/></svg>',
   texticon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11.5a8.38 8.38 0 0 1-4.5 7.4l-5 3.1.4-3.2A8.5 8.5 0 1 1 21 11.5z"/></svg>',
@@ -799,9 +979,67 @@ const supabase = (SUPABASE_URL.startsWith('http') && window.supabase)
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
 
+const SETTINGS_STORAGE_KEY = 'clearview-settings-v1';
+const DEFAULT_ACCENT = '#7650b5';
+const DEFAULT_CALENDAR_COLORS = { scheduled: '#4fb8e0', done: '#4caf6d', canceled: '#e2574c' };
+const DEFAULT_DOOR_KNOCK_COLORS = { secured: '#4caf6d', undetermined: '#4fb8e0', noJob: '#7650b5', noAnswer: '#827c8f', noSoliciting: '#e2574c' };
+function loadColorSettings(savedColors, defaults) {
+  return Object.fromEntries(Object.entries(defaults).map(([key, defaultColor]) => {
+    const savedColor = savedColors && savedColors[key];
+    return [key, typeof savedColor === 'string' && /^#[0-9a-f]{6}$/i.test(savedColor) ? savedColor : defaultColor];
+  }));
+}
+function loadAppSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || '{}');
+    const sectionColors = Object.fromEntries(Object.entries(saved.sectionColors || {}).filter(([key, value]) => /^[a-z]+$/.test(key) && /^#[0-9a-f]{6}$/i.test(value)));
+    return {
+      theme: saved.theme === 'dark' ? 'dark' : 'light',
+      sectionColors,
+      calendarColors: loadColorSettings(saved.calendarColors, DEFAULT_CALENDAR_COLORS),
+      doorKnockColors: loadColorSettings(saved.doorKnockColors, DEFAULT_DOOR_KNOCK_COLORS),
+    };
+  } catch (e) {
+    return {
+      theme: 'light', sectionColors: {},
+      calendarColors: { ...DEFAULT_CALENDAR_COLORS },
+      doorKnockColors: { ...DEFAULT_DOOR_KNOCK_COLORS },
+    };
+  }
+}
+let APP_SETTINGS = loadAppSettings();
+function saveAppSettings() {
+  try { localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(APP_SETTINGS)); } catch (e) {}
+}
+function applyAppSettings() {
+  const accent = APP_SETTINGS.sectionColors[VIEW] || DEFAULT_ACCENT;
+  const red = parseInt(accent.slice(1, 3), 16);
+  const green = parseInt(accent.slice(3, 5), 16);
+  const blue = parseInt(accent.slice(5, 7), 16);
+  const contrast = (red * 0.299 + green * 0.587 + blue * 0.114) > 155 ? '#262231' : '#ffffff';
+  document.documentElement.dataset.theme = APP_SETTINGS.theme;
+  document.documentElement.style.setProperty('--accent', accent);
+  document.documentElement.style.setProperty('--accent-soft', `${accent}22`);
+  document.documentElement.style.setProperty('--accent-border', `${accent}59`);
+  document.documentElement.style.setProperty('--accent-shadow', `${accent}40`);
+  document.documentElement.style.setProperty('--accent-glow', `${accent}0f`);
+  document.documentElement.style.setProperty('--accent-contrast', contrast);
+  Object.entries(APP_SETTINGS.calendarColors).forEach(([status, color]) => {
+    document.documentElement.style.setProperty(`--calendar-${status}`, color);
+    document.documentElement.style.setProperty(`--calendar-${status}-soft`, `${color}26`);
+  });
+  const doorColorTokens = { secured: 'door-secured', undetermined: 'door-undetermined', noJob: 'door-no-job', noAnswer: 'door-no-answer', noSoliciting: 'door-no-soliciting' };
+  Object.entries(doorColorTokens).forEach(([status, token]) => {
+    document.documentElement.style.setProperty(`--${token}`, APP_SETTINGS.doorKnockColors[status]);
+  });
+  const themeMeta = document.querySelector('meta[name="theme-color"]');
+  if (themeMeta) themeMeta.content = APP_SETTINGS.theme === 'dark' ? '#101014' : '#f8f7fb';
+}
+
 /* ============================ STATE ============================ */
 let DATA = { clients: [], inventory: [], events: [], guides: [], pricing: [], invoices: [], buylist: [], followups: [], houses: [] };
 let VIEW = 'dashboard';
+let NAV_OPEN = false;
 let CAL_DATE = new Date();
 let ACTIVE_GUIDE_ID = null;
 let GUIDE_PROGRESS = {}; // guideId -> Set of checked step ids (in-memory, per session)
@@ -810,6 +1048,9 @@ let INV_FILTER = 'all';
 let CLIENT_SEARCH = '';
 let INVOICE_TAB = 'invoices'; // 'invoices' | 'pricing'
 let CURRENT_USER = null;
+let ACTIVE_SUBSCRIPTION = null;
+let BILLING_OFFER = null;
+let BILLING_OFFER_PROMISE = null;
 let CALLTEXT_FILTER = 'pending'; // 'pending' | 'done' | 'all'
 let DOORKNOCK_MAP = null;
 let DOORKNOCK_CENTER = null; // [lat, lng], remembers pan position across re-renders
@@ -1060,6 +1301,192 @@ function openModal({ title, subtitle, icon, variant, bodyHTML, footHTML, onMount
 }
 function closeModal() { document.getElementById('dtl-modal-root').innerHTML = ''; }
 
+function openSettingsModal() {
+  const settingsTabs = [
+    { id: 'appearance', label: 'Appearance' },
+    ...NAV_ITEMS.map(item => ({ id: item.id, label: item.label })),
+    { id: 'account', label: 'Account & Data' },
+  ];
+  let activeTab = 'appearance';
+
+  function renderColorSettingsPanel(title, settingKey, defaults, entries) {
+    const panel = document.getElementById('dtl-settings-panel');
+    const sectionAccent = APP_SETTINGS.sectionColors[activeTab] || DEFAULT_ACCENT;
+    const colorInputs = entries.map(entry => `
+      <label class="dtl-settings-color" for="dtl-status-color-${entry.key}">
+        <input type="color" id="dtl-status-color-${entry.key}" data-status-color="${entry.key}" value="${APP_SETTINGS[settingKey][entry.key]}" aria-label="${escapeHTML(entry.label)} color">
+        <span><strong>${escapeHTML(entry.label)}</strong><br><span class="dtl-settings-color-value" id="dtl-status-color-value-${entry.key}">${APP_SETTINGS[settingKey][entry.key]}</span></span>
+      </label>`).join('');
+    panel.innerHTML = `
+      <h3>${escapeHTML(title)}</h3>
+      <div class="dtl-settings-subheading">Section accent</div>
+      <label class="dtl-settings-color" for="dtl-section-accent-color">
+        <input type="color" id="dtl-section-accent-color" value="${sectionAccent}" aria-label="${escapeHTML(title)} section accent">
+        <span><strong>Accent color</strong><br><span class="dtl-settings-color-value" id="dtl-section-accent-value">${sectionAccent}</span></span>
+      </label>
+      <button class="dtl-btn dtl-btn-ghost dtl-settings-reset" id="dtl-section-accent-reset" type="button">Reset section accent</button>
+      <div class="dtl-settings-subheading" style="margin-top:20px;">${escapeHTML(title)} status colors</div>
+      <div class="dtl-settings-color-grid">${colorInputs}</div>
+      <div class="dtl-settings-color-actions"><button class="dtl-btn dtl-btn-ghost" id="dtl-status-colors-reset" type="button">Reset status colors</button></div>`;
+
+    const accentInput = document.getElementById('dtl-section-accent-color');
+    accentInput.addEventListener('input', () => {
+      APP_SETTINGS.sectionColors[activeTab] = accentInput.value;
+      document.getElementById('dtl-section-accent-value').textContent = accentInput.value;
+      saveAppSettings();
+      if (VIEW === activeTab) applyAppSettings();
+    });
+    document.getElementById('dtl-section-accent-reset').addEventListener('click', () => {
+      delete APP_SETTINGS.sectionColors[activeTab];
+      accentInput.value = DEFAULT_ACCENT;
+      document.getElementById('dtl-section-accent-value').textContent = DEFAULT_ACCENT;
+      saveAppSettings();
+      if (VIEW === activeTab) applyAppSettings();
+    });
+    panel.querySelectorAll('[data-status-color]').forEach(input => input.addEventListener('input', () => {
+      APP_SETTINGS[settingKey][input.dataset.statusColor] = input.value;
+      document.getElementById(`dtl-status-color-value-${input.dataset.statusColor}`).textContent = input.value;
+      saveAppSettings();
+      if (VIEW === activeTab) renderAll();
+      else applyAppSettings();
+    }));
+    document.getElementById('dtl-status-colors-reset').addEventListener('click', () => {
+      APP_SETTINGS[settingKey] = { ...defaults };
+      saveAppSettings();
+      if (VIEW === activeTab) renderAll();
+      else applyAppSettings();
+      renderPanel();
+    });
+  }
+
+  function renderPanel() {
+    const tabs = document.getElementById('dtl-settings-tabs');
+    const panel = document.getElementById('dtl-settings-panel');
+    tabs.innerHTML = settingsTabs.map(tab => `
+      <button class="dtl-settings-tab ${activeTab === tab.id ? 'active' : ''}" id="dtl-settings-tab-${tab.id}" type="button" role="tab" aria-selected="${activeTab === tab.id}" aria-controls="dtl-settings-panel" tabindex="${activeTab === tab.id ? '0' : '-1'}" data-settings-tab="${tab.id}">${tab.label}</button>`).join('');
+    panel.setAttribute('aria-labelledby', `dtl-settings-tab-${activeTab}`);
+    tabs.querySelectorAll('[data-settings-tab]').forEach(button => {
+      button.addEventListener('click', () => {
+        activeTab = button.dataset.settingsTab;
+        renderPanel();
+      });
+      button.addEventListener('keydown', event => {
+        const currentIndex = settingsTabs.findIndex(tab => tab.id === button.dataset.settingsTab);
+        let nextIndex = currentIndex;
+        if (event.key === 'ArrowRight' || event.key === 'ArrowDown') nextIndex = (currentIndex + 1) % settingsTabs.length;
+        else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') nextIndex = (currentIndex - 1 + settingsTabs.length) % settingsTabs.length;
+        else if (event.key === 'Home') nextIndex = 0;
+        else if (event.key === 'End') nextIndex = settingsTabs.length - 1;
+        else return;
+        event.preventDefault();
+        const nextTab = tabs.querySelector(`[data-settings-tab="${settingsTabs[nextIndex].id}"]`);
+        nextTab.focus();
+        nextTab.click();
+      });
+    });
+
+    if (activeTab === 'appearance') {
+      panel.innerHTML = `
+        <h3>Appearance</h3>
+        <label class="dtl-setting-row" for="dtl-theme-toggle">
+          <span>Dark mode</span>
+          <span class="dtl-switch"><input type="checkbox" id="dtl-theme-toggle" role="switch" aria-label="Dark mode" ${APP_SETTINGS.theme === 'dark' ? 'checked' : ''}><span class="dtl-switch-track"></span></span>
+        </label>`;
+      document.getElementById('dtl-theme-toggle').addEventListener('change', event => {
+        APP_SETTINGS.theme = event.target.checked ? 'dark' : 'light';
+        saveAppSettings();
+        applyAppSettings();
+      });
+      return;
+    }
+
+    if (activeTab === 'calendar') {
+      renderColorSettingsPanel('Calendar', 'calendarColors', DEFAULT_CALENDAR_COLORS, [
+        { key: 'scheduled', label: 'Scheduled' },
+        { key: 'done', label: 'Done' },
+        { key: 'canceled', label: 'Canceled' },
+      ]);
+      return;
+    }
+
+    if (activeTab === 'doorknock') {
+      renderColorSettingsPanel('Door Knocking', 'doorKnockColors', DEFAULT_DOOR_KNOCK_COLORS, [
+        { key: 'secured', label: 'Answered, job secured' },
+        { key: 'undetermined', label: 'Answered, undetermined' },
+        { key: 'noJob', label: 'Answered, no job' },
+        { key: 'noAnswer', label: 'No answer' },
+        { key: 'noSoliciting', label: 'No soliciting' },
+      ]);
+      return;
+    }
+
+    if (activeTab === 'account') {
+      panel.innerHTML = `
+        <h3>Account & Data</h3>
+        <div class="dtl-settings-summary">Signed in as <strong>${escapeHTML(CURRENT_USER?.email || 'Unknown account')}</strong></div>
+        <div class="dtl-settings-summary">Subscription <strong>${ACTIVE_SUBSCRIPTION?.status === 'active' ? 'Active' : 'Trial active'}</strong></div>
+        <div class="dtl-settings-actions" style="margin-bottom:18px;"><button class="dtl-btn" id="dtl-settings-manage-billing" type="button">Manage subscription</button></div>
+        <div class="dtl-settings-actions">
+          <button class="dtl-btn" id="dtl-settings-export" type="button">Export backup</button>
+          <button class="dtl-btn" id="dtl-settings-import" type="button">Import backup</button>
+          <button class="dtl-btn dtl-btn-danger" id="dtl-settings-logout" type="button">Log out</button>
+        </div>`;
+      document.getElementById('dtl-settings-export').addEventListener('click', exportBackup);
+      document.getElementById('dtl-settings-import').addEventListener('click', () => document.getElementById('dtl-import-file').click());
+      document.getElementById('dtl-settings-logout').addEventListener('click', handleLogout);
+      document.getElementById('dtl-settings-manage-billing').addEventListener('click', openBillingPortal);
+      return;
+    }
+
+    const section = NAV_ITEMS.find(item => item.id === activeTab);
+    const color = APP_SETTINGS.sectionColors[activeTab] || DEFAULT_ACCENT;
+    panel.innerHTML = `
+      <h3>${escapeHTML(section.label)}</h3>
+      <label class="dtl-settings-color" for="dtl-section-color">
+        <input type="color" id="dtl-section-color" value="${color}" aria-label="${escapeHTML(section.label)} accent color">
+        <span><strong>Accent color</strong><br><span class="dtl-settings-color-value" id="dtl-section-color-value">${color}</span></span>
+      </label>
+      <button class="dtl-btn dtl-btn-ghost dtl-settings-reset" id="dtl-section-color-reset" type="button">Reset section color</button>`;
+    const colorInput = document.getElementById('dtl-section-color');
+    colorInput.addEventListener('input', () => {
+      APP_SETTINGS.sectionColors[activeTab] = colorInput.value;
+      document.getElementById('dtl-section-color-value').textContent = colorInput.value;
+      saveAppSettings();
+      if (VIEW === activeTab) applyAppSettings();
+    });
+    document.getElementById('dtl-section-color-reset').addEventListener('click', () => {
+      delete APP_SETTINGS.sectionColors[activeTab];
+      colorInput.value = DEFAULT_ACCENT;
+      document.getElementById('dtl-section-color-value').textContent = DEFAULT_ACCENT;
+      saveAppSettings();
+      if (VIEW === activeTab) applyAppSettings();
+    });
+  }
+
+  openModal({
+    title: 'Settings',
+    subtitle: 'Workspace preferences',
+    icon: ICONS.settings,
+    variant: 'settings',
+    bodyHTML: `<div class="dtl-settings-layout"><nav class="dtl-settings-tabs" id="dtl-settings-tabs" role="tablist" aria-label="Settings categories"></nav><section class="dtl-settings-panel" id="dtl-settings-panel" role="tabpanel"></section></div>`,
+    onMount: renderPanel,
+  });
+}
+
+function setNavOpen(open) {
+  NAV_OPEN = window.matchMedia('(max-width: 760px)').matches && open;
+  updateNavMode();
+}
+
+function updateNavMode() {
+  const mobile = window.matchMedia('(max-width: 760px)').matches;
+  const menuToggle = document.getElementById('dtl-menu-toggle');
+  document.getElementById('dtl-nav').classList.toggle('open', NAV_OPEN);
+  menuToggle.setAttribute('aria-expanded', String(mobile && NAV_OPEN));
+  menuToggle.setAttribute('aria-label', mobile ? (NAV_OPEN ? 'Close navigation menu' : 'Open navigation menu') : 'Go to dashboard');
+  if (!mobile) NAV_OPEN = false;
+}
+
 /* ============================ NAV ============================ */
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', sub: "Today's overview" },
@@ -1075,12 +1502,13 @@ const NAV_ITEMS = [
 ];
 function renderNav() {
   const nav = document.getElementById('dtl-nav');
+  nav.classList.toggle('open', NAV_OPEN);
   nav.innerHTML = NAV_ITEMS.map(it => `
     <button class="dtl-nav-item ${VIEW === it.id ? 'active' : ''}" data-nav="${it.id}">
       ${ICONS[it.id]}<span>${it.label}</span>
     </button>`).join('');
   nav.querySelectorAll('[data-nav]').forEach(btn => {
-    btn.addEventListener('click', () => { VIEW = btn.dataset.nav; ACTIVE_GUIDE_ID = null; renderAll(); });
+    btn.addEventListener('click', () => { VIEW = btn.dataset.nav; ACTIVE_GUIDE_ID = null; setNavOpen(false); renderAll(); });
   });
   const cur = NAV_ITEMS.find(i => i.id === VIEW);
   document.getElementById('dtl-page-title').textContent = cur.label;
@@ -1401,7 +1829,10 @@ function renderCalendar() {
   const cellHTML = cells.map(c => {
     if (c.outside) return `<div class="dtl-cal-cell outside"><div class="dtl-cal-daynum">${c.day}</div></div>`;
     const dayEvents = DATA.events.filter(e => e.date === c.iso).sort((a, b) => a.time.localeCompare(b.time));
-    const chips = dayEvents.slice(0, 2).map(e => `<div class="dtl-cal-chip">${fmtTime(e.time)} · ${escapeHTML(e.clientName)}</div>`).join('');
+    const chips = dayEvents.slice(0, 2).map(e => {
+      const status = ['scheduled', 'done', 'canceled'].includes(e.status) ? e.status : 'scheduled';
+      return `<div class="dtl-cal-chip ${status}">${fmtTime(e.time)} · ${escapeHTML(e.clientName)}</div>`;
+    }).join('');
     const more = dayEvents.length > 2 ? `<div class="dtl-cal-more">+${dayEvents.length - 2} more</div>` : '';
     return `<div class="dtl-cal-cell ${c.iso === todayIso ? 'today' : ''}" data-cal-day="${c.iso}">
       <div class="dtl-cal-daynum">${c.day}</div>${chips}${more}
@@ -2259,14 +2690,15 @@ function renderReports() {
 
 /* ============================ DOOR KNOCKING MAP ============================ */
 function houseColor(h) {
-  if (h.status === 'no_soliciting') return '#e2574c';
-  if (h.status === 'no_answer') return '#676d79';
+  const colors = APP_SETTINGS.doorKnockColors;
+  if (h.status === 'no_soliciting') return colors.noSoliciting;
+  if (h.status === 'no_answer') return colors.noAnswer;
   if (h.status === 'answered') {
-    if (h.jobSecured === 'yes') return '#4caf6d';
-    if (h.jobSecured === 'no') return '#e8a33d';
-    return '#4fb8e0';
+    if (h.jobSecured === 'yes') return colors.secured;
+    if (h.jobSecured === 'no') return colors.noJob;
+    return colors.undetermined;
   }
-  return '#9aa0ac';
+  return getComputedStyle(document.documentElement).getPropertyValue('--text-dim').trim() || '#625c70';
 }
 function houseStatusLabel(h) {
   if (h.status === 'no_soliciting') return 'No Soliciting';
@@ -2296,11 +2728,11 @@ function renderDoorKnock() {
       <div class="dtl-kpi"><div class="label">Jobs Secured</div><div class="value" style="color:var(--success);">${secured}</div></div>
     </div>
     <div class="dtl-map-legend">
-      <div class="dtl-map-legend-item"><span class="dtl-map-legend-dot" style="background:#4caf6d;"></span>Answered — got the job</div>
-      <div class="dtl-map-legend-item"><span class="dtl-map-legend-dot" style="background:#4fb8e0;"></span>Answered — undetermined</div>
-      <div class="dtl-map-legend-item"><span class="dtl-map-legend-dot" style="background:#e8a33d;"></span>Answered — no job</div>
-      <div class="dtl-map-legend-item"><span class="dtl-map-legend-dot" style="background:#676d79;"></span>No answer</div>
-      <div class="dtl-map-legend-item"><span class="dtl-map-legend-dot" style="background:#e2574c;"></span>No soliciting</div>
+      <div class="dtl-map-legend-item"><span class="dtl-map-legend-dot" style="background:var(--door-secured);"></span>Answered — got the job</div>
+      <div class="dtl-map-legend-item"><span class="dtl-map-legend-dot" style="background:var(--door-undetermined);"></span>Answered — undetermined</div>
+      <div class="dtl-map-legend-item"><span class="dtl-map-legend-dot" style="background:var(--door-no-job);"></span>Answered — no job</div>
+      <div class="dtl-map-legend-item"><span class="dtl-map-legend-dot" style="background:var(--door-no-answer);"></span>No answer</div>
+      <div class="dtl-map-legend-item"><span class="dtl-map-legend-dot" style="background:var(--door-no-soliciting);"></span>No soliciting</div>
     </div>
     <div class="dtl-panel" style="padding:8px;">
       <div id="dtl-map"></div>
@@ -2349,7 +2781,7 @@ function initDoorKnockMap() {
 function addHouseMarker(h) {
   if (!DOORKNOCK_MAP) return;
   const marker = L.circleMarker([h.lat, h.lng], {
-    radius: 9, weight: 2, color: '#14161a', fillColor: houseColor(h), fillOpacity: 1,
+    radius: 9, weight: 2, color: '#ffffff', fillColor: houseColor(h), fillOpacity: 1,
   }).addTo(DOORKNOCK_MAP);
   marker.on('click', (e) => {
     L.DomEvent.stopPropagation(e);
@@ -2423,6 +2855,7 @@ function openHouseModal(houseId, presetLatLng) {
 
 /* ============================ ROUTER / RENDER ============================ */
 function renderAll() {
+  applyAppSettings();
   renderNav();
   renderClock();
   const viewRoot = document.getElementById('dtl-view');
@@ -2584,12 +3017,59 @@ function wireViewEvents() {
 /* ============================ AUTH ============================ */
 let AUTH_MODE = 'signin'; // 'signin' | 'signup'
 
+async function billingRequest(endpoint, method = 'GET', query = '') {
+  const { data, error } = await supabase.auth.getSession();
+  if (error || !data.session?.access_token) throw new Error('Sign in again to verify billing.');
+  const response = await fetch(`/.netlify/functions/${endpoint}${query}`, {
+    method,
+    headers: { Authorization: `Bearer ${data.session.access_token}` },
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || 'Billing service is unavailable.');
+  return result;
+}
+
+async function loadBillingOffer() {
+  if (BILLING_OFFER) return BILLING_OFFER;
+  if (BILLING_OFFER_PROMISE) return BILLING_OFFER_PROMISE;
+  BILLING_OFFER_PROMISE = (async () => {
+    const response = await fetch('/.netlify/functions/billing-config');
+    const offer = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(offer.error || 'Subscription details are unavailable.');
+    const price = new Intl.NumberFormat(undefined, { style: 'currency', currency: offer.currency.toUpperCase() }).format(offer.amount / 100);
+    const interval = offer.intervalCount > 1 ? `every ${offer.intervalCount} ${offer.interval}s` : `per ${offer.interval}`;
+    BILLING_OFFER = { ...offer, displayPrice: `${price} ${interval}` };
+    document.getElementById('dtl-paywall-price').textContent = `${offer.name} · ${BILLING_OFFER.displayPrice}`;
+    document.getElementById('dtl-paywall-subscribe').disabled = false;
+    return BILLING_OFFER;
+  })().catch(error => {
+    document.getElementById('dtl-paywall-price').textContent = 'Subscription pricing unavailable';
+    document.getElementById('dtl-paywall-subscribe').disabled = true;
+    return null;
+  }).finally(() => { BILLING_OFFER_PROMISE = null; });
+  return BILLING_OFFER_PROMISE;
+}
+
+function setPaywallStatus(message) {
+  document.getElementById('dtl-paywall-status').textContent = message || '';
+}
+
+function showPaywall(message = '') {
+  document.getElementById('dtl-auth-gate').style.display = 'none';
+  document.getElementById('dtl-root').style.display = 'none';
+  document.getElementById('dtl-paywall').style.display = 'flex';
+  setPaywallStatus(message);
+  loadBillingOffer();
+}
+
 function showAuthGate() {
   document.getElementById('dtl-auth-gate').style.display = 'flex';
+  document.getElementById('dtl-paywall').style.display = 'none';
   document.getElementById('dtl-root').style.display = 'none';
 }
 function showApp() {
   document.getElementById('dtl-auth-gate').style.display = 'none';
+  document.getElementById('dtl-paywall').style.display = 'none';
   document.getElementById('dtl-root').style.display = 'grid';
 }
 function setAuthError(msg) { document.getElementById('dtl-auth-error').textContent = msg || ''; }
@@ -2638,21 +3118,70 @@ async function handleAuthSubmit() {
     await startApp();
   } catch (e) {
     setAuthError(e.message || 'Something went wrong.');
-    btn.disabled = false; btn.textContent = AUTH_MODE === 'signin' ? 'Sign In' : 'Create Account';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = AUTH_MODE === 'signin' ? 'Sign In' : 'Create Account';
   }
 }
 async function handleLogout() {
   try { await supabase.auth.signOut(); } catch (e) {}
   CURRENT_USER = null;
+  ACTIVE_SUBSCRIPTION = null;
   DATA = { clients: [], inventory: [], events: [], guides: [], pricing: [], invoices: [], buylist: [], followups: [], houses: [] };
   showAuthGate();
 }
+
+async function handleCheckout() {
+  const button = document.getElementById('dtl-paywall-subscribe');
+  button.disabled = true;
+  button.textContent = 'Opening secure checkout...';
+  setPaywallStatus('Redirecting to Stripe Checkout.');
+  try {
+    const session = await billingRequest('create-checkout-session', 'POST');
+    if (!session.url) throw new Error('Stripe did not return a checkout URL.');
+    window.location.assign(session.url);
+  } catch (error) {
+    setPaywallStatus(error.message);
+    button.textContent = 'Subscribe securely';
+    button.disabled = !BILLING_OFFER;
+  }
+}
+
+async function openBillingPortal() {
+  try {
+    const session = await billingRequest('create-portal-session', 'POST');
+    if (!session.url) throw new Error('Stripe did not return a billing portal URL.');
+    window.location.assign(session.url);
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
 async function startApp() {
-  showApp();
+  showPaywall('Checking your subscription...');
   const emailEl = document.getElementById('dtl-account-email');
   if (emailEl && CURRENT_USER) emailEl.textContent = CURRENT_USER.email;
-  await loadData();
-  renderAll();
+  try {
+    const checkoutSessionId = new URLSearchParams(window.location.search).get('session_id');
+    const checkoutQuery = checkoutSessionId ? `?session_id=${encodeURIComponent(checkoutSessionId)}` : '';
+    ACTIVE_SUBSCRIPTION = await billingRequest('subscription-status', 'GET', checkoutQuery);
+    if (!ACTIVE_SUBSCRIPTION.active) {
+      const checkoutResult = new URLSearchParams(window.location.search).get('checkout');
+      showPaywall(checkoutResult === 'success'
+        ? 'Stripe completed checkout, but no active subscription was found yet. Try checking again shortly.'
+        : checkoutResult === 'cancelled'
+          ? 'Checkout was canceled. You can subscribe whenever you are ready.'
+          : 'An active subscription is required to unlock your workspace.');
+      return;
+    }
+    if (window.location.search.includes('checkout=')) window.history.replaceState({}, '', window.location.pathname);
+    showApp();
+    await loadData();
+    renderAll();
+  } catch (error) {
+    ACTIVE_SUBSCRIPTION = null;
+    showPaywall(`We could not verify your subscription. ${error.message} Your workspace stays locked until billing can be verified.`);
+  }
 }
 
 /* ============================ BACKUP / RESTORE ============================ */
@@ -2662,7 +3191,7 @@ function exportBackup() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `lustre-backup-${todayStr()}.json`;
+  a.download = `clearview-backup-${todayStr()}.json`;
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -2690,14 +3219,31 @@ async function importBackupFile(file) {
 
 /* ============================ INIT ============================ */
 async function init() {
+  applyAppSettings();
   wireAuthGate();
-  const exportBtn = document.getElementById('dtl-export-btn');
-  const importBtn = document.getElementById('dtl-import-btn');
+  const menuToggle = document.getElementById('dtl-menu-toggle');
+  const settingsBtn = document.getElementById('dtl-settings-btn');
   const importFile = document.getElementById('dtl-import-file');
-  const logoutBtn = document.getElementById('dtl-logout-btn');
-  if (exportBtn) exportBtn.addEventListener('click', exportBackup);
-  if (importBtn) importBtn.addEventListener('click', () => importFile.click());
-  if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
+  document.getElementById('dtl-paywall-subscribe').addEventListener('click', handleCheckout);
+  document.getElementById('dtl-paywall-manage').addEventListener('click', openBillingPortal);
+  document.getElementById('dtl-paywall-retry').addEventListener('click', async () => {
+    setPaywallStatus('Checking your subscription...');
+    if (!BILLING_OFFER) { BILLING_OFFER_PROMISE = null; await loadBillingOffer(); }
+    await startApp();
+  });
+  document.getElementById('dtl-paywall-logout').addEventListener('click', handleLogout);
+  if (menuToggle) menuToggle.addEventListener('click', () => {
+    if (window.matchMedia('(max-width: 760px)').matches) setNavOpen(!NAV_OPEN);
+    else if (VIEW !== 'dashboard') { VIEW = 'dashboard'; ACTIVE_GUIDE_ID = null; renderAll(); }
+  });
+  window.addEventListener('resize', updateNavMode);
+  if (settingsBtn) settingsBtn.addEventListener('click', () => { setNavOpen(false); openSettingsModal(); });
+  document.addEventListener('click', (e) => {
+    if (NAV_OPEN && !e.target.closest('.dtl-sidebar')) setNavOpen(false);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && NAV_OPEN) { setNavOpen(false); menuToggle.focus(); }
+  });
   if (importFile) importFile.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (file) importBackupFile(file);
